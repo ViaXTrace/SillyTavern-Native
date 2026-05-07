@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>VRM Viewer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; }
+  canvas { display: block; width: 100% !important; height: 100% !important; }
+  #status {
+    position: fixed; bottom: 12px; left: 0; right: 0;
+    text-align: center; color: rgba(255,255,255,0.4);
+    font-family: system-ui; font-size: 11px; pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<div id="status">Loading VRM…</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.168.0/examples/jsm/",
+    "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@2.1.2/lib/three-vrm.module.js",
+    "@pixiv/three-vrm-animation": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm-animation@2.1.2/lib/three-vrm-animation.module.js"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
+import { VRMAnimationLoaderPlugin, createVRMAnimationClip } from '@pixiv/three-vrm-animation';
+
+// ── Scene setup ───────────────────────────────────────────────────────────────
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 0.1, 20);
+camera.position.set(0, 1.4, 3.5);
+
+// Lighting
+const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+scene.add(ambient);
+
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+dirLight.position.set(1, 3, 2);
+dirLight.castShadow = true;
+scene.add(dirLight);
+
+const rimLight = new THREE.DirectionalLight(0x8888ff, 0.4);
+rimLight.position.set(-2, 1, -2);
+scene.add(rimLight);
+
+// ── State ──────────────────────────────────────────────────────────────────────
+let currentVRM = null;
+let mixer = null;
+let clock = new THREE.Clock();
+let idleAction = null;
+
+// ── Loaders ───────────────────────────────────────────────────────────────────
+const loader = new GLTFLoader();
+loader.register(p => new VRMLoaderPlugin(p));
+loader.register(p => new VRMAnimationLoaderPlugin(p));
+
+function setStatus(msg) {
+  document.getElementById('status').textContent = msg;
+}
+
+// ── Load VRM ──────────────────────────────────────────────────────────────────
+async function loadVRM(url) {
+  setStatus('Loading model…');
+  try {
+    if (currentVRM) {
+      scene.remove(currentVRM.scene);
+      VRMUtils.deepDispose(currentVRM.scene);
+      currentVRM = null;
+      mixer = null;
+    }
+
+    const gltf = await loader.loadAsync(url);
+    const vrm = gltf.userData.vrm;
+    if (!vrm) throw new Error('Not a VRM file');
+
+    VRMUtils.removeUnnecessaryVertices(gltf.scene);
+    VRMUtils.removeUnnecessaryJoints(gltf.scene);
+
+    vrm.scene.rotation.y = Math.PI;
+    scene.add(vrm.scene);
+    currentVRM = vrm;
+
+    // Auto-center camera on model
+    const box = new THREE.Box3().setFromObject(vrm.scene);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    camera.position.set(center.x, center.y + size.y * 0.1, size.y * 2.2);
+    camera.lookAt(center.x, center.y + size.y * 0.05, 0);
+
+    mixer = new THREE.AnimationMixer(vrm.scene);
+
+    // Start idle breathing
+    playIdleBreathing(vrm);
+
+    setStatus('');
+    FlutterChannel.postMessage(JSON.stringify({ type: 'vrmLoaded', success: true }));
+  } catch (e) {
+    setStatus('Failed to load model');
+    FlutterChannel.postMessage(JSON.stringify({ type: 'vrmLoaded', success: false, error: e.message }));
+  }
+}
+
+// ── Load BVH Animation ────────────────────────────────────────────────────────
+async function loadAnimation(url) {
+  if (!currentVRM || !mixer) return;
+  try {
+    const gltf = await loader.loadAsync(url);
+    const vrmAnimation = gltf.userData.vrmAnimations?.[0];
+    if (!vrmAnimation) return;
+    const clip = createVRMAnimationClip(vrmAnimation, currentVRM);
+    if (idleAction) idleAction.stop();
+    idleAction = mixer.clipAction(clip);
+    idleAction.play();
+  } catch (e) {
+    console.warn('Animation load failed:', e);
+  }
+}
+
+// ── Idle breathing procedural animation ───────────────────────────────────────
+function playIdleBreathing(vrm) {
+  if (!vrm?.humanoid) return;
+  const chest = vrm.humanoid.getNormalizedBoneNode('chest');
+  const spine = vrm.humanoid.getNormalizedBoneNode('spine');
+  if (!chest && !spine) return;
+  // Procedural breathing handled in animation loop
+}
+
+// ── Expression control ────────────────────────────────────────────────────────
+function setExpression(name, weight = 1.0) {
+  if (!currentVRM?.expressionManager) return;
+  const em = currentVRM.expressionManager;
+  ['happy', 'angry', 'sad', 'surprised', 'relaxed', 'neutral'].forEach(e => {
+    em.setValue(e, 0);
+  });
+  em.setValue(name, weight);
+}
+
+// ── Flutter ↔ JS bridge ───────────────────────────────────────────────────────
+window.VRMBridge = {
+  loadVRM,
+  loadAnimation,
+  setExpression,
+  setRotation: (y) => {
+    if (currentVRM) currentVRM.scene.rotation.y = y;
+  },
+  reset: () => {
+    if (currentVRM) {
+      currentVRM.scene.rotation.y = Math.PI;
+      setExpression('neutral');
+    }
+  },
+};
+
+// ── Animation loop ────────────────────────────────────────────────────────────
+let t = 0;
+function animate() {
+  requestAnimationFrame(animate);
+  const delta = clock.getDelta();
+  t += delta;
+
+  if (currentVRM) {
+    // Procedural idle breathing
+    if (currentVRM.humanoid) {
+      const chest = currentVRM.humanoid.getNormalizedBoneNode('chest');
+      const spine = currentVRM.humanoid.getNormalizedBoneNode('spine');
+      const breathAmt = Math.sin(t * 0.8) * 0.012;
+      if (chest) chest.rotation.x = breathAmt;
+      if (spine) spine.rotation.x = breathAmt * 0.5;
+    }
+
+    // Subtle head sway
+    if (currentVRM.humanoid) {
+      const head = currentVRM.humanoid.getNormalizedBoneNode('head');
+      if (head) {
+        head.rotation.y = Math.sin(t * 0.3) * 0.04;
+        head.rotation.z = Math.sin(t * 0.5) * 0.02;
+      }
+    }
+
+    // Auto blink
+    if (currentVRM.expressionManager) {
+      const blinkCycle = t % 4;
+      if (blinkCycle > 3.8) {
+        const blinkT = (blinkCycle - 3.8) / 0.2;
+        const blink = blinkT < 0.5 ? blinkT * 2 : (1 - blinkT) * 2;
+        currentVRM.expressionManager.setValue('blink', blink);
+      } else {
+        currentVRM.expressionManager.setValue('blink', 0);
+      }
+    }
+
+    currentVRM.update(delta);
+    if (mixer) mixer.update(delta);
+  }
+
+  renderer.render(scene, camera);
+}
+animate();
+
+// ── Resize ────────────────────────────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ── Gesture: rotate character ─────────────────────────────────────────────────
+let lastX = null;
+renderer.domElement.addEventListener('touchstart', e => { lastX = e.touches[0].clientX; });
+renderer.domElement.addEventListener('touchmove', e => {
+  if (lastX !== null && currentVRM) {
+    const dx = e.touches[0].clientX - lastX;
+    currentVRM.scene.rotation.y += dx * 0.01;
+    lastX = e.touches[0].clientX;
+  }
+});
+renderer.domElement.addEventListener('touchend', () => { lastX = null; });
+
+setStatus('Ready — no model loaded');
+</script>
+</body>
+</html>
