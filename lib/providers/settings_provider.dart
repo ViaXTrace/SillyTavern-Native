@@ -18,7 +18,7 @@ class SettingsNotifier extends AsyncNotifier<AppSettings> {
     return AppSettings.fromJson(jsonDecode(raw) as Map<String, dynamic>);
   }
 
-  Future<void> update(AppSettings Function(AppSettings) fn) async {
+  Future<void> save(AppSettings Function(AppSettings) fn) async {
     final curr = state.value ?? const AppSettings();
     final next = fn(curr);
     state = AsyncData(next);
