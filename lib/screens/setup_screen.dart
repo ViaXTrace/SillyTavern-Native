@@ -108,7 +108,7 @@ class _ProviderStepState extends ConsumerState<_ProviderStep> {
     if (_keyCtrl.text.trim().isNotEmpty) {
       await ref.read(providersProvider.notifier).saveApiKey(_selectedId, _keyCtrl.text.trim());
     }
-    await ref.read(settingsProvider.notifier).update((s) => s.copyWith(activeProviderId: _selectedId));
+    await ref.read(settingsProvider.notifier).save((s) => s.copyWith(activeProviderId: _selectedId));
     widget.onDone();
   }
 
