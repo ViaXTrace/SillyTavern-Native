@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:intl/intl.dart';
 import '../models/message_model.dart';
+import '../services/tts_service.dart';
 import '../theme/app_theme.dart';
 
 class ChatBubble extends StatelessWidget {
@@ -76,10 +77,7 @@ class _UserBubble extends StatelessWidget {
               child: Text(
                 message.content,
                 style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  height: 1.5,
-                ),
+                    color: Colors.white, fontSize: 15, height: 1.5),
               ),
             ),
           ),
@@ -88,7 +86,8 @@ class _UserBubble extends StatelessWidget {
               padding: const EdgeInsets.only(top: 4, right: 4),
               child: Text(
                 DateFormat.jm().format(message.timestamp),
-                style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                style:
+                    const TextStyle(fontSize: 11, color: AppTheme.textMuted),
               ),
             ),
         ],
@@ -114,7 +113,7 @@ class _AIBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: 16, right: 60, top: 4, bottom: 4),
+      padding: const EdgeInsets.only(left: 16, right: 16, top: 4, bottom: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
@@ -139,7 +138,8 @@ class _AIBubble extends StatelessWidget {
                 GestureDetector(
                   onLongPress: () => _copy(context, message.content),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
                       color: AppTheme.surface,
                       borderRadius: const BorderRadius.only(
@@ -175,14 +175,24 @@ class _AIBubble extends StatelessWidget {
                           ),
                   ),
                 ),
-                if (showTimestamp)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4, left: 4),
-                    child: Text(
-                      DateFormat.jm().format(message.timestamp),
-                      style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
-                    ),
+                // Actions row: timestamp + TTS button
+                Padding(
+                  padding: const EdgeInsets.only(top: 4, left: 4),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (showTimestamp)
+                        Text(
+                          DateFormat.jm().format(message.timestamp),
+                          style: const TextStyle(
+                              fontSize: 11, color: AppTheme.textMuted),
+                        ),
+                      if (showTimestamp) const SizedBox(width: 8),
+                      // TTS speak button
+                      _SpeakButton(text: message.content),
+                    ],
                   ),
+                ),
               ],
             ),
           ),
@@ -192,6 +202,71 @@ class _AIBubble extends StatelessWidget {
   }
 }
 
+// ── TTS Speak Button ──────────────────────────────────────────────────────────
+class _SpeakButton extends StatefulWidget {
+  final String text;
+  const _SpeakButton({required this.text});
+
+  @override
+  State<_SpeakButton> createState() => _SpeakButtonState();
+}
+
+class _SpeakButtonState extends State<_SpeakButton> {
+  bool _speaking = false;
+  final _tts = TtsService();
+
+  Future<void> _toggle() async {
+    if (_speaking) {
+      await _tts.stop();
+      if (mounted) setState(() => _speaking = false);
+    } else {
+      setState(() => _speaking = true);
+      await _tts.speak(widget.text);
+      if (mounted) setState(() => _speaking = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: _toggle,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: _speaking
+              ? AppTheme.accent.withOpacity(0.15)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: _speaking
+              ? Border.all(color: AppTheme.accent.withOpacity(0.3), width: 1)
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _speaking
+                  ? Icons.stop_circle_outlined
+                  : Icons.volume_up_outlined,
+              size: 14,
+              color: _speaking ? AppTheme.accent : AppTheme.textMuted,
+            ),
+            if (_speaking) ...[
+              const SizedBox(width: 4),
+              const Text(
+                'Speaking…',
+                style: TextStyle(fontSize: 10, color: AppTheme.accent),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Streaming content ─────────────────────────────────────────────────────────
 class _StreamingContent extends StatelessWidget {
   final String content;
   const _StreamingContent({required this.content});
@@ -206,10 +281,7 @@ class _StreamingContent extends StatelessWidget {
           child: Text(
             content,
             style: const TextStyle(
-              color: AppTheme.textPrimary,
-              fontSize: 15,
-              height: 1.6,
-            ),
+                color: AppTheme.textPrimary, fontSize: 15, height: 1.6),
           ),
         ),
         const SizedBox(width: 4),
@@ -259,6 +331,7 @@ class _BlinkingCursorState extends State<_BlinkingCursor>
   }
 }
 
+// ── Avatar ────────────────────────────────────────────────────────────────────
 class _Avatar extends StatelessWidget {
   final String? name;
   final String? path;
@@ -283,16 +356,14 @@ class _Avatar extends StatelessWidget {
               ? name!.substring(0, name!.length > 1 ? 2 : 1).toUpperCase()
               : 'AI',
           style: const TextStyle(
-            color: Colors.white,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-          ),
+              color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
         ),
       ),
     );
   }
 }
 
+// ── System bubble ─────────────────────────────────────────────────────────────
 class _SystemBubble extends StatelessWidget {
   final ChatMessage message;
   const _SystemBubble({required this.message});
