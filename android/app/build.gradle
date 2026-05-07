@@ -6,8 +6,8 @@ plugins {
 
 android {
     namespace "com.sillytavern.app"
-    compileSdk flutter.compileSdkVersion
-    ndkVersion flutter.ndkVersion
+    compileSdk 34
+    ndkVersion "25.1.8937393"
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
@@ -21,9 +21,9 @@ android {
     defaultConfig {
         applicationId "com.sillytavern.app"
         minSdk 23
-        targetSdk flutter.targetSdkVersion
-        versionCode flutter.versionCode
-        versionName flutter.versionName
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
         multiDexEnabled true
     }
 
