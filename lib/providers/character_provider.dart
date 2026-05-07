@@ -31,13 +31,15 @@ class CharacterNotifier extends AsyncNotifier<List<Character>> {
   Future<void> add(Character char) async {
     final file = File('${_dir.path}/${char.id}.json');
     await file.writeAsString(jsonEncode(char.toJson()));
-    state = AsyncData([...(state.value ?? []), char]..sort((a, b) => a.name.compareTo(b.name)));
+    final list = <Character>[...(state.value ?? <Character>[]), char]
+      ..sort((a, b) => a.name.compareTo(b.name));
+    state = AsyncData(list);
   }
 
   Future<void> saveCharacter(Character char) async {
     final file = File('${_dir.path}/${char.id}.json');
     await file.writeAsString(jsonEncode(char.toJson()));
-    final list = [...(state.value ?? [])];
+    final list = <Character>[...(state.value ?? <Character>[])];
     final idx = list.indexWhere((c) => c.id == char.id);
     if (idx >= 0) list[idx] = char;
     state = AsyncData(list);
