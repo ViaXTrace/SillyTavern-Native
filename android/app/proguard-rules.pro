@@ -1,0 +1,4 @@
+-keep class io.flutter.** { *; }
+-keep class io.flutter.plugins.** { *; }
+-dontwarn io.flutter.**
+-keep class com.sillytavern.app.** { *; }
