@@ -151,9 +151,7 @@ class ChatNotifier extends Notifier<ChatState> {
       volume: settings.ttsVolume as double,
     )
         .then((_) {
-      if (ref.context.mounted) {
-        state = state.copyWith(isSpeaking: false);
-      }
+      state = state.copyWith(isSpeaking: false);
     }).catchError((_) {
       state = state.copyWith(isSpeaking: false);
     });
