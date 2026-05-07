@@ -17,9 +17,6 @@ jobs:
   build-android:
     name: Build Android APK
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: sillytavern-app
 
     steps:
       - name: Checkout
@@ -45,25 +42,21 @@ jobs:
         run: flutter analyze --no-fatal-infos
         continue-on-error: true
 
-      # ── Debug build (no signing needed) ──────────────────────────────────────
+      # ── Debug build (no signing needed) ───────────────────────────────────────
       - name: Build debug APK
-        if: github.event.inputs.release_type == 'debug' || github.event_name == 'workflow_dispatch'
-        run: flutter build apk --debug --no-shrink
-        env:
-          FLUTTER_TARGET: lib/main.dart
+        if: github.event_name == 'workflow_dispatch'
+        run: flutter build apk --debug
 
       # ── Release build (signed) ────────────────────────────────────────────────
       - name: Decode keystore
         if: startsWith(github.ref, 'refs/tags/')
-        run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/keystore.jks
-        shell: bash
+        run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/keystore.jks
 
       - name: Build release APK
         if: startsWith(github.ref, 'refs/tags/')
         run: flutter build apk --release
         env:
-          ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/sillytavern-app/android/app/keystore.jks
+          ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/android/app/keystore.jks
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
@@ -72,27 +65,28 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         run: flutter build appbundle --release
         env:
-          ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/sillytavern-app/android/app/keystore.jks
+          ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/android/app/keystore.jks
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
-      # ── Upload artifacts ──────────────────────────────────────────────────────
-      - name: Upload debug APK artifact
-        if: github.event.inputs.release_type == 'debug' || github.event_name == 'workflow_dispatch'
+      # ── Upload artifacts ───────────────────────────────────────────────────────
+      - name: Upload debug APK
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: sillytavern-debug.apk
-          path: sillytavern-app/build/app/outputs/apk/debug/app-debug.apk
+          path: build/app/outputs/apk/debug/app-debug.apk
+          retention-days: 7
 
-      - name: Upload release APK artifact
+      - name: Upload release APK
         if: startsWith(github.ref, 'refs/tags/')
         uses: actions/upload-artifact@v4
         with:
           name: sillytavern-release.apk
-          path: sillytavern-app/build/app/outputs/apk/release/app-release.apk
+          path: build/app/outputs/apk/release/app-release.apk
 
-      # ── Create GitHub Release ─────────────────────────────────────────────────
+      # ── GitHub Release ─────────────────────────────────────────────────────────
       - name: Get version from tag
         if: startsWith(github.ref, 'refs/tags/')
         id: version
@@ -111,24 +105,17 @@ jobs:
             ### What's included
             - Native Flutter UI with AIRI-inspired dark design
             - VRM 3D character rendering (Three.js + @pixiv/three-vrm)
-            - Direct AI API support: OpenAI, Claude, Gemini, Ollama, OpenRouter
-            - No backend server required — 100% standalone
-            - Character card system (compatible with SillyTavern format)
+            - Direct AI API — OpenAI, Claude, Gemini, Ollama, OpenRouter (no server needed)
+            - Character voice via TTS (pitch, speed, language controls)
+            - Character card system (SillyTavern JSON format compatible)
             - Secure API key storage (device keychain)
-            - Markdown chat rendering
-            - Animated typing indicator
+            - Markdown chat rendering with animated typing indicator
 
             ### Installation
-            Download `sillytavern-release.apk` and install on Android 6.0+.
-            Enable "Install from unknown sources" in your device settings.
-
-            ### First launch
-            1. Select your AI provider
-            2. Enter your API key (stored securely on device)
-            3. Add characters from the Characters tab
-            4. Start chatting!
+            Download `app-release.apk` → install on Android 6.0+.
+            Enable "Install from unknown sources" in device settings.
           files: |
-            sillytavern-app/build/app/outputs/apk/release/app-release.apk
-            sillytavern-app/build/app/outputs/bundle/release/app-release.aab
+            build/app/outputs/apk/release/app-release.apk
+            build/app/outputs/bundle/release/app-release.aab
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
