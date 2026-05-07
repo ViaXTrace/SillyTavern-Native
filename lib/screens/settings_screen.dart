@@ -44,7 +44,7 @@ class SettingsScreen extends ConsumerWidget {
                     isActive: p.id == settings.activeProviderId,
                     onTap: () => ref
                         .read(settingsProvider.notifier)
-                        .update((s) => s.copyWith(activeProviderId: p.id)),
+                        .save((s) => s.copyWith(activeProviderId: p.id)),
                     onEditKey: () => _editApiKey(context, ref, p),
                   );
                 }).toList(),
@@ -64,7 +64,7 @@ class SettingsScreen extends ConsumerWidget {
                     min: 0, max: 2, divisions: 20,
                     onChanged: (v) => ref
                         .read(settingsProvider.notifier)
-                        .update((s) => s.copyWith(temperature: v)),
+                        .save((s) => s.copyWith(temperature: v)),
                   ),
                   _SliderTile(
                     label: 'Max Tokens',
@@ -73,7 +73,7 @@ class SettingsScreen extends ConsumerWidget {
                     format: (v) => v.round().toString(),
                     onChanged: (v) => ref
                         .read(settingsProvider.notifier)
-                        .update((s) => s.copyWith(maxTokens: v.round())),
+                        .save((s) => s.copyWith(maxTokens: v.round())),
                   ),
                   _SliderTile(
                     label: 'Context Messages',
@@ -82,7 +82,7 @@ class SettingsScreen extends ConsumerWidget {
                     format: (v) => v.round().toString(),
                     onChanged: (v) => ref
                         .read(settingsProvider.notifier)
-                        .update((s) => s.copyWith(maxContextMessages: v.round())),
+                        .save((s) => s.copyWith(maxContextMessages: v.round())),
                   ),
                 ],
               ),
@@ -102,14 +102,14 @@ class SettingsScreen extends ConsumerWidget {
                     value: settings.enableTTS,
                     onChanged: (v) => ref
                         .read(settingsProvider.notifier)
-                        .update((s) => s.copyWith(enableTTS: v)),
+                        .save((s) => s.copyWith(enableTTS: v)),
                   ),
                   if (settings.enableTTS) ...[
                     _LanguageTile(
                       current: settings.ttsLanguage,
                       onChanged: (lang) => ref
                           .read(settingsProvider.notifier)
-                          .update((s) => s.copyWith(ttsLanguage: lang)),
+                          .save((s) => s.copyWith(ttsLanguage: lang)),
                     ),
                     _SliderTile(
                       label: 'Pitch',
@@ -117,7 +117,7 @@ class SettingsScreen extends ConsumerWidget {
                       min: 0.5, max: 2.0, divisions: 15,
                       onChanged: (v) => ref
                           .read(settingsProvider.notifier)
-                          .update((s) => s.copyWith(ttsPitch: v)),
+                          .save((s) => s.copyWith(ttsPitch: v)),
                     ),
                     _SliderTile(
                       label: 'Speed',
@@ -125,7 +125,7 @@ class SettingsScreen extends ConsumerWidget {
                       min: 0.1, max: 1.0, divisions: 9,
                       onChanged: (v) => ref
                           .read(settingsProvider.notifier)
-                          .update((s) => s.copyWith(ttsRate: v)),
+                          .save((s) => s.copyWith(ttsRate: v)),
                     ),
                     _SliderTile(
                       label: 'Volume',
@@ -133,7 +133,7 @@ class SettingsScreen extends ConsumerWidget {
                       min: 0.0, max: 1.0, divisions: 10,
                       onChanged: (v) => ref
                           .read(settingsProvider.notifier)
-                          .update((s) => s.copyWith(ttsVolume: v)),
+                          .save((s) => s.copyWith(ttsVolume: v)),
                     ),
                     _TtsTestButton(settings: settings),
                   ],
@@ -155,7 +155,7 @@ class SettingsScreen extends ConsumerWidget {
                     value: settings.enableVRM,
                     onChanged: (v) => ref
                         .read(settingsProvider.notifier)
-                        .update((s) => s.copyWith(enableVRM: v)),
+                        .save((s) => s.copyWith(enableVRM: v)),
                   ),
                   _SwitchTile(
                     label: 'Show Timestamps',
@@ -164,7 +164,7 @@ class SettingsScreen extends ConsumerWidget {
                     value: settings.showTimestamps,
                     onChanged: (v) => ref
                         .read(settingsProvider.notifier)
-                        .update((s) => s.copyWith(showTimestamps: v)),
+                        .save((s) => s.copyWith(showTimestamps: v)),
                   ),
                   _SwitchTile(
                     label: 'Haptic Feedback',
@@ -173,7 +173,7 @@ class SettingsScreen extends ConsumerWidget {
                     value: settings.hapticFeedback,
                     onChanged: (v) => ref
                         .read(settingsProvider.notifier)
-                        .update((s) => s.copyWith(hapticFeedback: v)),
+                        .save((s) => s.copyWith(hapticFeedback: v)),
                   ),
                 ],
               ),
