@@ -34,7 +34,7 @@ class CharacterNotifier extends AsyncNotifier<List<Character>> {
     state = AsyncData([...(state.value ?? []), char]..sort((a, b) => a.name.compareTo(b.name)));
   }
 
-  Future<void> update(Character char) async {
+  Future<void> saveCharacter(Character char) async {
     final file = File('${_dir.path}/${char.id}.json');
     await file.writeAsString(jsonEncode(char.toJson()));
     final list = [...(state.value ?? [])];
