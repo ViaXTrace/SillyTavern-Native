@@ -50,7 +50,7 @@ class CharactersScreen extends ConsumerWidget {
   }
 
   Future<void> _select(BuildContext context, WidgetRef ref, Character c) async {
-    await ref.read(settingsProvider.notifier).update(
+    await ref.read(settingsProvider.notifier).save(
           (s) => s.copyWith(activeCharacterId: c.id),
         );
     await ref.read(chatProvider.notifier).startChat();
